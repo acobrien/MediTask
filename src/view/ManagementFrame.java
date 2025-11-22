@@ -39,7 +39,7 @@ public class ManagementFrame extends JFrame {
             }
         });
         setSize(1280, 720);
-        showPanel("LoginPanel");
+        refreshPanels("LoginPanel");
         setVisible(true);
     }
 
@@ -60,10 +60,6 @@ public class ManagementFrame extends JFrame {
         add(cardPanel);
     }
 
-    public void showPanel(String panelName) {
-        cardLayout.show(cardPanel, panelName);
-    }
-
     public void refreshPanels(String panelName) {
         cardPanel.removeAll();
 
@@ -79,12 +75,6 @@ public class ManagementFrame extends JFrame {
         cardPanel.repaint();
 
         cardLayout.show(cardPanel, panelName);
-    }
-
-    public void reset() {
-        employeeController = new EmployeeController();
-
-        refreshPanels("Login");
     }
 
     public EmployeeController getEmployeeController() {

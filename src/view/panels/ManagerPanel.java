@@ -5,6 +5,7 @@ import model.*;
 import controller.*;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 
@@ -19,8 +20,11 @@ public class ManagerPanel extends JPanel {
     private JTextField taskTitleField;
     private JTextArea taskDescField;
 
-    private DefaultListModel<Task> taskListModel = new DefaultListModel<>();
     private JComboBox<Task> taskDropdown;
+
+    // --- NEW COMPONENTS ---
+    private JComboBox<TaskStatus> updateStatusBox;
+    // ----------------------
 
     private JComboBox<String> filterBox;
 
@@ -38,98 +42,157 @@ public class ManagerPanel extends JPanel {
 
     private void buildPanel() {
         setLayout(new BorderLayout());
+        setBorder(new EmptyBorder(10, 10, 10, 10)); // Outer padding for the whole window
 
-        // ----- Left: Task creation panel -----
-        JPanel leftPanel = new JPanel();
-        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
-        leftPanel.setBorder(BorderFactory.createTitledBorder("Create Task"));
-
-        // Logout button
+        // --- Top Header (Logout) ---
+        JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         logoutButton = new JButton("Logout");
-        logoutButton.addActionListener(e -> frame.showPanel("LoginPanel"));
+        logoutButton.addActionListener(e -> frame.refreshPanels("LoginPanel"));
+        topBar.add(logoutButton);
+        add(topBar, BorderLayout.NORTH);
 
-        JPanel logoutPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        logoutButton.setPreferredSize(new Dimension(200, 40));
-        logoutPanel.add(logoutButton);
-        leftPanel.add(Box.createVerticalStrut(10));
-        leftPanel.add(logoutPanel);
+        // --- Main Content (Split Pane) ---
 
-        // Task title
-        JPanel titlePanel = new JPanel(new BorderLayout(5, 5));
-        titlePanel.add(new JLabel("Title:"), BorderLayout.WEST);
+        // 1. Left Panel: Creation Form
+        JPanel leftPanel = new JPanel(new GridBagLayout());
+        leftPanel.setBorder(BorderFactory.createTitledBorder("Create New Task"));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Title
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0; gbc.anchor = GridBagConstraints.EAST;
+        leftPanel.add(new JLabel("Title:"), gbc);
+
         taskTitleField = new JTextField();
-        titlePanel.add(taskTitleField, BorderLayout.CENTER);
-        leftPanel.add(titlePanel);
-        leftPanel.add(Box.createVerticalStrut(10));
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
+        leftPanel.add(taskTitleField, gbc);
 
         // Description
-        JPanel descPanel = new JPanel(new BorderLayout(5, 5));
-        descPanel.add(new JLabel("Description:"), BorderLayout.NORTH);
-        taskDescField = new JTextArea(4, 20);
-        descPanel.add(new JScrollPane(taskDescField), BorderLayout.CENTER);
-        leftPanel.add(descPanel);
-        leftPanel.add(Box.createVerticalStrut(10));
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0; gbc.anchor = GridBagConstraints.NORTHEAST;
+        leftPanel.add(new JLabel("Description:"), gbc);
 
-        // Assignment panel
-        JPanel assignPanel = new JPanel(new GridLayout(3, 2, 5, 5));
+        taskDescField = new JTextArea(5, 20);
+        taskDescField.setLineWrap(true);
+        taskDescField.setWrapStyleWord(true);
+        JScrollPane descScroll = new JScrollPane(taskDescField);
+        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 1.0; gbc.weighty = 0.3; // Allow height growth
+        gbc.fill = GridBagConstraints.BOTH;
+        leftPanel.add(descScroll, gbc);
 
-        assignPanel.add(new JLabel("Assign Employee:"));
+        // Reset constraints for standard rows
+        gbc.weighty = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.EAST;
+
+        // Separator
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
+        leftPanel.add(new JSeparator(), gbc);
+        gbc.gridwidth = 1;
+
+        // Assign Employee
+        gbc.gridx = 0; gbc.gridy = 3; gbc.weightx = 0;
+        leftPanel.add(new JLabel("Assign Employee:"), gbc);
+
         employeeBox = new JComboBox<>();
-        assignPanel.add(employeeBox);
+        gbc.gridx = 1; gbc.gridy = 3; gbc.weightx = 1.0;
+        leftPanel.add(employeeBox, gbc);
 
-        assignPanel.add(new JLabel("Assign Group:"));
+        // Assign Group
+        gbc.gridx = 0; gbc.gridy = 4; gbc.weightx = 0;
+        leftPanel.add(new JLabel("Assign Group:"), gbc);
+
         groupBox = new JComboBox<>();
-        assignPanel.add(groupBox);
+        gbc.gridx = 1; gbc.gridy = 4; gbc.weightx = 1.0;
+        leftPanel.add(groupBox, gbc);
 
-        assignPanel.add(new JLabel("Status:"));
-        statusBox = new JComboBox<>();
-        assignPanel.add(statusBox);
-
-        leftPanel.add(assignPanel);
-        leftPanel.add(Box.createVerticalStrut(10));
-
-        // View Details button (Popup)
+        // View Details Button (Small button under assignments)
         viewDetailsButton = new JButton("View Selected Details");
         viewDetailsButton.addActionListener(e -> showDetails());
-        leftPanel.add(viewDetailsButton);
-        leftPanel.add(Box.createVerticalStrut(20));
+        gbc.gridx = 1; gbc.gridy = 5; gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.EAST;
+        leftPanel.add(viewDetailsButton, gbc);
 
-        // Create button
+        // Status
+        gbc.gridx = 0; gbc.gridy = 6; gbc.weightx = 0; gbc.fill = GridBagConstraints.HORIZONTAL;
+        leftPanel.add(new JLabel("Initial Status:"), gbc);
+
+        statusBox = new JComboBox<>();
+        gbc.gridx = 1; gbc.gridy = 6; gbc.weightx = 1.0;
+        leftPanel.add(statusBox, gbc);
+
+        // Spacer to push create button to bottom
+        gbc.gridx = 0; gbc.gridy = 7; gbc.weighty = 1.0; gbc.fill = GridBagConstraints.BOTH;
+        leftPanel.add(Box.createGlue(), gbc);
+
+        // Create Button
         JButton createButton = new JButton("Create Task");
+        createButton.setFont(createButton.getFont().deriveFont(Font.BOLD, 14f));
+        createButton.setPreferredSize(new Dimension(200, 45));
         createButton.addActionListener(e -> createTask());
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        createButton.setPreferredSize(new Dimension(200, 40));
-        buttonPanel.add(createButton);
-        leftPanel.add(buttonPanel);
+        gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2; gbc.weighty = 0;
+        gbc.fill = GridBagConstraints.NONE; gbc.anchor = GridBagConstraints.CENTER;
+        leftPanel.add(createButton, gbc);
 
-        // ----- Right: Task panel -----
-        JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
-        rightPanel.setBorder(BorderFactory.createTitledBorder("Tasks"));
 
-        // Filter combo box
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        filterPanel.add(new JLabel("Filter:"));
+        // 2. Right Panel: Task List & Filter
+        JPanel rightPanel = new JPanel(new GridBagLayout());
+        rightPanel.setBorder(BorderFactory.createTitledBorder("Existing Tasks"));
+
+        GridBagConstraints rhs = new GridBagConstraints();
+        rhs.insets = new Insets(5, 5, 5, 5);
+
+        // Filter Row
+        rhs.gridx = 0; rhs.gridy = 0; rhs.anchor = GridBagConstraints.EAST;
+        rightPanel.add(new JLabel("Filter View:"), rhs);
+
         filterBox = new JComboBox<>(new String[]{"All Tasks", "My Tasks"});
         filterBox.addActionListener(e -> refreshTaskDropdown());
-        filterPanel.add(filterBox);
-        rightPanel.add(filterPanel, BorderLayout.NORTH);
+        rhs.gridx = 1; rhs.gridy = 0; rhs.weightx = 1.0; rhs.fill = GridBagConstraints.HORIZONTAL;
+        rightPanel.add(filterBox, rhs);
 
-        // Task dropdown
-        JPanel taskPanel = new JPanel(new BorderLayout(5,5));
+        // Task Dropdown Label
+        rhs.gridx = 0; rhs.gridy = 1; rhs.weightx = 0; rhs.fill = GridBagConstraints.NONE;
+        rightPanel.add(new JLabel("Select Task:"), rhs);
+
+        // Task Dropdown
         taskDropdown = new JComboBox<>();
         taskDropdown.addActionListener(e -> {
-            if (!updatingTaskDropdown) {
-                showSelectedTaskDetails();
-            }
+            if (updatingTaskDropdown) return;
+
+            Object selected = taskDropdown.getSelectedItem();
+            if (selected instanceof PlaceholderTask) return;
+
+            showSelectedTaskDetails();
         });
-        taskPanel.add(taskDropdown, BorderLayout.NORTH);
+        rhs.gridx = 1; rhs.gridy = 1; rhs.weightx = 1.0; rhs.fill = GridBagConstraints.HORIZONTAL;
+        rightPanel.add(taskDropdown, rhs);
 
-        rightPanel.add(taskPanel, BorderLayout.CENTER);
+        // --- NEW: Update Status Section ---
+        rhs.gridx = 0; rhs.gridy = 2; rhs.weightx = 0; rhs.fill = GridBagConstraints.NONE;
+        rightPanel.add(new JLabel("Update Status:"), rhs);
 
-        // ----- Split pane -----
+        JPanel updatePanel = new JPanel(new BorderLayout(5, 0));
+        updateStatusBox = new JComboBox<>();
+        JButton updateButton = new JButton("Update");
+        updateButton.addActionListener(e -> updateTaskStatus());
+
+        updatePanel.add(updateStatusBox, BorderLayout.CENTER);
+        updatePanel.add(updateButton, BorderLayout.EAST);
+
+        rhs.gridx = 1; rhs.gridy = 2; rhs.weightx = 1.0; rhs.fill = GridBagConstraints.HORIZONTAL;
+        rightPanel.add(updatePanel, rhs);
+        // ----------------------------------
+
+        // Spacer to push content to top
+        rhs.gridx = 0; rhs.gridy = 3; rhs.weighty = 1.0; rhs.gridwidth = 2; rhs.fill = GridBagConstraints.BOTH;
+        rightPanel.add(Box.createGlue(), rhs);
+
+
+        // --- Final Assembly ---
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
-        splitPane.setDividerLocation(350);
+        splitPane.setDividerLocation(400); // Give the form a bit more room
         splitPane.setResizeWeight(0.4);
 
         add(splitPane, BorderLayout.CENTER);
@@ -137,37 +200,32 @@ public class ManagerPanel extends JPanel {
 
     private void loadData() {
         // Employees
-        employeeBox.addItem(null); // Default empty option
+        employeeBox.addItem(null);
         frame.getEmployeeController().getEmployees().values()
                 .forEach(employeeBox::addItem);
 
         // Groups
-        groupBox.addItem(null); // Default empty option
+        groupBox.addItem(null);
         frame.getGroupController().getGroups()
                 .forEach(groupBox::addItem);
 
         // Statuses
         frame.getTaskController().getStatuses()
                 .forEach(statusBox::addItem);
+        frame.getTaskController().getStatuses()
+                .forEach(updateStatusBox::addItem);
 
-        // Tasks
-        frame.getTaskController().getTasks()
-                .forEach(taskListModel::addElement);
+        // Populate the dropdown immediately
+        refreshTaskDropdown();
 
-        // Friendly null rendering for Dropdowns
+        // Friendly null rendering
         ListCellRenderer<Object> friendlyRenderer = new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                String text;
-                if (value == null) {
-                    text = "Select";
-                } else {
-                    text = value.toString();
-                }
+                String text = (value == null) ? "Select" : value.toString();
                 return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
             }
         };
-
         employeeBox.setRenderer((ListCellRenderer)friendlyRenderer);
         groupBox.setRenderer((ListCellRenderer)friendlyRenderer);
     }
@@ -192,8 +250,16 @@ public class ManagerPanel extends JPanel {
         });
     }
 
+    private static class PlaceholderTask extends Task {
+        public PlaceholderTask() { super("","",null); }
+        @Override public String toString() { return " — Select a Task — "; }
+    }
+
     private void refreshTaskDropdown() {
+        updatingTaskDropdown = true;
+
         taskDropdown.removeAllItems();
+        taskDropdown.addItem(new PlaceholderTask());  // <-- dummy choice
 
         Employee currentUser = frame.getEmployeeController().getCurrentUser();
         String filter = (String) filterBox.getSelectedItem();
@@ -210,6 +276,8 @@ public class ManagerPanel extends JPanel {
                 }
             }
         }
+
+        updatingTaskDropdown = false;
     }
 
     private void showSelectedTaskDetails() {
@@ -239,6 +307,29 @@ public class ManagerPanel extends JPanel {
 
         JOptionPane.showMessageDialog(this, scrollPane, "Task Details", JOptionPane.INFORMATION_MESSAGE);
     }
+
+    // --- NEW METHOD: Update Task Status ---
+    private void updateTaskStatus() {
+        Task selectedTask = (Task) taskDropdown.getSelectedItem();
+        TaskStatus newStatus = (TaskStatus) updateStatusBox.getSelectedItem();
+
+        if (selectedTask == null) {
+            JOptionPane.showMessageDialog(this, "Please select a task first.", "No Task Selected", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (newStatus == null) {
+            JOptionPane.showMessageDialog(this, "Please select a status.", "No Status Selected", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        selectedTask.setStatus(newStatus);
+        // Repaint the dropdown so the text (which includes the status) updates visually
+        taskDropdown.repaint();
+
+        JOptionPane.showMessageDialog(this, "Status updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+    }
+    // ---------------------------------------
 
     private void createTask() {
         updatingTaskDropdown = true;

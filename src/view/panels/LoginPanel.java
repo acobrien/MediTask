@@ -75,10 +75,10 @@ public class LoginPanel extends JPanel {
                 JOptionPane.showMessageDialog(null, "Invalid username or password");
                 break;
             case 0:
-                managementFrame.showPanel("ManagerPanel");
+                managementFrame.refreshPanels("ManagerPanel");
                 break;
             case 1:
-                managementFrame.showPanel("LaborerPanel");
+                managementFrame.refreshPanels("LaborerPanel");
                 break;
         }
     }
