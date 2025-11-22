@@ -1,0 +1,7 @@
+username,password,id,firstName,lastName,streetAddress,city,state,country,salary,hireDate,birthDate,department,role
+jphillips,jpPass!12,1001,James,Phillips,842 Market St,Columbus,OH,USA,78000,2018-04-12,1986-11-03,Pharmacy,Manager
+srodriguez,srKey$88,1002,Sophia,Rodriguez,129 Elmwood Ave,Austin,TX,USA,52000,2020-09-29,1992-07-15,Nursing,Laborer
+mchan,mcPwd#55,1003,Michael,Chan,4412 Bay Ridge Dr,Seattle,WA,USA,81500,2017-01-23,1984-02-22,Communications,Manager
+lmartin,lmSecure22,1004,Lauren,Martin,73 Briarwood Ln,Orlando,FL,USA,50500,2021-06-10,1995-03-09,Pharmacy,Laborer
+tjohnson,tjWork!90,1005,Thomas,Johnson,998 Pine Crest Rd,Denver,CO,USA,76500,2019-11-17,1988-12-01,Nursing,Manager
+kpatel,kpPass332,1006,Krishna,Patel,357 Oak Terrace,San Diego,CA,USA,49500,2022-02-14,1996-09-21,Communications,Laborer

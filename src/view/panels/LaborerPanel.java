@@ -4,11 +4,11 @@ import view.ManagementFrame;
 
 import javax.swing.*;
 
-public class EmployeePanel extends JPanel {
+public class LaborerPanel extends JPanel {
 
     ManagementFrame managementFrame;
 
-    public EmployeePanel(ManagementFrame managementFrame) {
+    public LaborerPanel(ManagementFrame managementFrame) {
         this.managementFrame = managementFrame;
         buildPanel();
     }

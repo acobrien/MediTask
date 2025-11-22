@@ -1,8 +1,8 @@
 package view;
 
-import controller.UserController;
-import view.panels.AdminPanel;
-import view.panels.EmployeePanel;
+import controller.EmployeeController;
+import view.panels.ManagerPanel;
+import view.panels.LaborerPanel;
 import view.panels.LoginPanel;
 
 import javax.swing.*;
@@ -10,19 +10,19 @@ import java.awt.*;
 
 public class ManagementFrame extends JFrame {
 
-    private UserController userController;
+    private EmployeeController employeeController;
 
     private CardLayout cardLayout;
     private JPanel cardPanel;
 
     public ManagementFrame() {
         super("MediTask");
-        this.userController = new UserController();
+        this.employeeController = new EmployeeController();
 
         buildPanel();
 
-        this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-        this.addWindowListener(new java.awt.event.WindowAdapter() {
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
             @Override
             public void windowClosing(java.awt.event.WindowEvent e) {
                 // Do stuff before close
@@ -32,23 +32,24 @@ public class ManagementFrame extends JFrame {
                 System.exit(0);
             }
         });
-        this.setSize(1280, 720);
-        this.setVisible(true);
+        setSize(1280, 720);
+        showPanel("LoginPanel");
+        setVisible(true);
     }
 
     private void buildPanel() {
         ImageIcon window_icon = new ImageIcon("src/assets/person.png");
         this.setIconImage(window_icon.getImage());
 
-        AdminPanel adminPanel = new AdminPanel(this);
-        EmployeePanel employeePanel = new EmployeePanel(this);
+        ManagerPanel managerPanel = new ManagerPanel(this);
+        LaborerPanel laborerPanel = new LaborerPanel(this);
         LoginPanel loginPanel = new LoginPanel(this);
 
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
         cardPanel.add(loginPanel, "LoginPanel");
-        cardPanel.add(adminPanel, "AdminPanel");
-        cardPanel.add(employeePanel, "EmployeePanel");
+        cardPanel.add(managerPanel, "ManagerPanel");
+        cardPanel.add(laborerPanel, "LaborerPanel");
 
         add(cardPanel);
     }
@@ -60,13 +61,13 @@ public class ManagementFrame extends JFrame {
     public void refreshPanels(String panelName) {
         cardPanel.removeAll();
 
-        AdminPanel adminPanel = new AdminPanel(this);
-        EmployeePanel employeePanel = new EmployeePanel(this);
+        ManagerPanel managerPanel = new ManagerPanel(this);
+        LaborerPanel laborerPanel = new LaborerPanel(this);
         LoginPanel loginPanel = new LoginPanel(this);
 
         cardPanel.add(loginPanel, "LoginPanel");
-        cardPanel.add(adminPanel, "AdminPanel");
-        cardPanel.add(employeePanel, "EmployeePanel");
+        cardPanel.add(managerPanel, "ManagerPanel");
+        cardPanel.add(laborerPanel, "LaborerPanel");
 
         cardPanel.revalidate();
         cardPanel.repaint();
@@ -75,9 +76,13 @@ public class ManagementFrame extends JFrame {
     }
 
     public void reset() {
-        userController = new UserController();
+        employeeController = new EmployeeController();
 
         refreshPanels("Login");
+    }
+
+    public EmployeeController getEmployeeController() {
+        return employeeController;
     }
 
 }
