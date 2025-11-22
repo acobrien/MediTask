@@ -238,7 +238,7 @@ public class ManagerPanel extends JPanel {
         ListCellRenderer<Object> friendlyRenderer = new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                String text = (value == null) ? "Select" : value.toString();
+                String text = (value == null) ? " — Select — " : value.toString();
                 return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
             }
         };
