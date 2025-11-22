@@ -46,7 +46,7 @@ public class ManagerPanel extends JPanel {
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
 
         // New Administration Buttons
-        JButton addUserBtn = new JButton("Add User");
+        JButton addUserBtn = new JButton("Add Employee");
         addUserBtn.addActionListener(e -> handleAddUser());
 
         JButton addGroupBtn = new JButton("Add Group");
@@ -291,13 +291,14 @@ public class ManagerPanel extends JPanel {
 
         // Layout the form
         Object[] message = {
-                "First Name *:", firstField,
-                "Last Name *:", lastField,
-                "Username *:", userField,
-                "Password *:", passField,
-                "Role *:", roleBox,
-                "Department *:", deptField,
-                "-----------------",
+                " — Required — ",
+                "First Name:", firstField,
+                "Last Name:", lastField,
+                "Username:", userField,
+                "Password:", passField,
+                "Role:", roleBox,
+                "Department:", deptField,
+                " — Optional — ",
                 "Street Address:", streetField,
                 "City:", cityField,
                 "State:", stateField,
@@ -307,7 +308,7 @@ public class ManagerPanel extends JPanel {
                 "Birth Date (YYYY-MM-DD):", birthDateField
         };
 
-        int option = JOptionPane.showConfirmDialog(this, message, "Add New User", JOptionPane.OK_CANCEL_OPTION);
+        int option = JOptionPane.showConfirmDialog(this, message, "Add Employee", JOptionPane.OK_CANCEL_OPTION);
 
         if (option == JOptionPane.OK_OPTION) {
             // Extract text
@@ -336,7 +337,7 @@ public class ManagerPanel extends JPanel {
 
             // Validate Required Fields
             if (user.isEmpty() || pass.isEmpty() || fName.isEmpty() || lName.isEmpty() || dept.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please fill in all required fields marked with *.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Please fill in all required fields.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
@@ -354,7 +355,7 @@ public class ManagerPanel extends JPanel {
             );
 
             refreshDropdownData(); // Update UI
-            JOptionPane.showMessageDialog(this, "User Added Successfully!");
+            JOptionPane.showMessageDialog(this, "Employee Added Successfully!");
         }
     }
 
@@ -376,11 +377,11 @@ public class ManagerPanel extends JPanel {
         frame.getGroupController().getGroups().forEach(grpSelect::addItem);
 
         Object[] message = {
-                "Select User:", empSelect,
+                "Select Employee:", empSelect,
                 "Select Group:", grpSelect
         };
 
-        int option = JOptionPane.showConfirmDialog(this, message, "Assign User to Group", JOptionPane.OK_CANCEL_OPTION);
+        int option = JOptionPane.showConfirmDialog(this, message, "Assign Employee to Group", JOptionPane.OK_CANCEL_OPTION);
         if (option == JOptionPane.OK_OPTION) {
             Employee e = (Employee) empSelect.getSelectedItem();
             Group g = (Group) grpSelect.getSelectedItem();
