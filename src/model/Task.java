@@ -17,6 +17,9 @@ public class Task {
     public void assignGroup(Group g) { this.group = g; }
     public void setStatus(TaskStatus status) { this.status = status; }
 
+    public String getTitle() { return title; }
+    public String getDescription() { return description; }
+
     @Override
     public String toString() {
         return title + " (" + status.getName() + ")";

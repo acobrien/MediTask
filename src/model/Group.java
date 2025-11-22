@@ -11,6 +11,12 @@ public class Group {
         this.name = name;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {}
+
     public void addEmployee(Employee e) { members.add(e); }
 
     @Override

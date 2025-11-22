@@ -20,11 +20,14 @@ public class ManagerPanel extends JPanel {
     private JTextArea taskDescField;
 
     private DefaultListModel<Task> taskListModel = new DefaultListModel<>();
-    private JList<Task> taskList = new JList<>(taskListModel);
+    private JComboBox<Task> taskDropdown;
 
     private JComboBox<String> filterBox;
 
+    private JButton logoutButton;
     private JButton viewDetailsButton;
+
+    private boolean updatingTaskDropdown = false;
 
     public ManagerPanel(ManagementFrame frame) {
         this.frame = frame;
@@ -40,6 +43,16 @@ public class ManagerPanel extends JPanel {
         JPanel leftPanel = new JPanel();
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
         leftPanel.setBorder(BorderFactory.createTitledBorder("Create Task"));
+
+        // Logout button
+        logoutButton = new JButton("Logout");
+        logoutButton.addActionListener(e -> frame.showPanel("LoginPanel"));
+
+        JPanel logoutPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        logoutButton.setPreferredSize(new Dimension(200, 40));
+        logoutPanel.add(logoutButton);
+        leftPanel.add(Box.createVerticalStrut(10));
+        leftPanel.add(logoutPanel);
 
         // Task title
         JPanel titlePanel = new JPanel(new BorderLayout(5, 5));
@@ -90,7 +103,7 @@ public class ManagerPanel extends JPanel {
         buttonPanel.add(createButton);
         leftPanel.add(buttonPanel);
 
-        // ----- Right: Task list panel -----
+        // ----- Right: Task panel -----
         JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
         rightPanel.setBorder(BorderFactory.createTitledBorder("Tasks"));
 
@@ -98,14 +111,21 @@ public class ManagerPanel extends JPanel {
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         filterPanel.add(new JLabel("Filter:"));
         filterBox = new JComboBox<>(new String[]{"All Tasks", "My Tasks"});
-        filterBox.addActionListener(e -> refreshTaskList());
+        filterBox.addActionListener(e -> refreshTaskDropdown());
         filterPanel.add(filterBox);
         rightPanel.add(filterPanel, BorderLayout.NORTH);
 
-        // Task list
-        taskList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        JScrollPane listScroll = new JScrollPane(taskList);
-        rightPanel.add(listScroll, BorderLayout.CENTER);
+        // Task dropdown
+        JPanel taskPanel = new JPanel(new BorderLayout(5,5));
+        taskDropdown = new JComboBox<>();
+        taskDropdown.addActionListener(e -> {
+            if (!updatingTaskDropdown) {
+                showSelectedTaskDetails();
+            }
+        });
+        taskPanel.add(taskDropdown, BorderLayout.NORTH);
+
+        rightPanel.add(taskPanel, BorderLayout.CENTER);
 
         // ----- Split pane -----
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
@@ -172,27 +192,57 @@ public class ManagerPanel extends JPanel {
         });
     }
 
-    private void refreshTaskList() {
-        taskListModel.clear();
+    private void refreshTaskDropdown() {
+        taskDropdown.removeAllItems();
 
         Employee currentUser = frame.getEmployeeController().getCurrentUser();
         String filter = (String) filterBox.getSelectedItem();
 
         for (Task t : frame.getTaskController().getTasks()) {
             if ("All Tasks".equals(filter)) {
-                taskListModel.addElement(t);
+                taskDropdown.addItem(t);
             } else if ("My Tasks".equals(filter)) {
                 boolean assignedToMe = t.getAssignee() != null && t.getAssignee().equals(currentUser);
                 boolean inMyGroup = t.getGroup() != null && t.getGroup().getMembers().contains(currentUser);
 
                 if (assignedToMe || inMyGroup) {
-                    taskListModel.addElement(t);
+                    taskDropdown.addItem(t);
                 }
             }
         }
     }
 
+    private void showSelectedTaskDetails() {
+        Task selected = (Task) taskDropdown.getSelectedItem();
+        if (selected == null) return;
+
+        StringBuilder details = new StringBuilder();
+        details.append("Title: ").append(selected.getTitle()).append("\n");
+        details.append("Description: ").append(selected.getDescription()).append("\n");
+        details.append("Status: ").append(selected.getStatus()).append("\n");
+        if (selected.getAssignee() != null) {
+            details.append("Assigned to: ").append(selected.getAssignee()).append("\n");
+        }
+        if (selected.getGroup() != null) {
+            details.append("Group: ").append(selected.getGroup()).append("\n");
+        }
+
+        JTextArea textArea = new JTextArea(details.toString());
+        textArea.setEditable(false);
+        textArea.setOpaque(false);
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(350, 200));
+        scrollPane.setBorder(null);
+
+        JOptionPane.showMessageDialog(this, scrollPane, "Task Details", JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private void createTask() {
+        updatingTaskDropdown = true;
+
         String title = taskTitleField.getText().trim();
         String desc = taskDescField.getText().trim();
 
@@ -224,16 +274,14 @@ public class ManagerPanel extends JPanel {
         if (e != null) t.assignEmployee(e);
         if (g != null) t.assignGroup(g);
 
-        taskListModel.addElement(t);
+        // Add to dropdown immediately
+        refreshTaskDropdown();  // <-- ensures the dropdown is updated with filters applied
 
         // Reset inputs
         taskTitleField.setText("");
         taskDescField.setText("");
-        // Dropdowns remain selected per user workflow preference,
-        // or you can reset them:
-        // employeeBox.setSelectedItem(null);
-        // groupBox.setSelectedItem(null);
-        JOptionPane.showMessageDialog(this, "Task created successfully!");
+
+        updatingTaskDropdown = false;
     }
 
     private void showDetails() {
