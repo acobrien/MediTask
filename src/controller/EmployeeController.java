@@ -94,6 +94,43 @@ public class EmployeeController {
         return -1;
     }
 
+    public void addNewEmployee(String fName, String lName, String username, String password, String role,
+                               String street, String city, String state, String country,
+                               double salary, String hireDate, String birthDate, String department) {
+
+        // Generate ID (Simple logic based on size + 1, consistent with previous code)
+        int newId = employees.size() + 1;
+
+        // Create the full Employee object
+        Employee e = new Employee(
+                username,
+                password,
+                newId,
+                fName,
+                lName,
+                street.isEmpty() ? "N/A" : street,
+                city.isEmpty() ? "N/A" : city,
+                state.isEmpty() ? "N/A" : state,
+                country.isEmpty() ? "N/A" : country,
+                salary,
+                hireDate.isEmpty() ? "N/A" : hireDate,
+                birthDate.isEmpty() ? "N/A" : birthDate,
+                department,
+                role
+        );
+
+        // Add to collections
+        employees.put(username, e);
+
+        if ("Manager".equalsIgnoreCase(role)) {
+            managers.put(username, e);
+        } else {
+            laborers.put(username, e);
+        }
+
+        // Optional: You might want to append this to the CSV file here so data persists.
+    }
+
     public Employee getCurrentUser() { return currentUser; }
 
     public TreeMap<String, Employee> getEmployees() {

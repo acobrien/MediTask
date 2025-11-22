@@ -22,9 +22,7 @@ public class ManagerPanel extends JPanel {
 
     private JComboBox<Task> taskDropdown;
 
-    // --- NEW COMPONENTS ---
     private JComboBox<TaskStatus> updateStatusBox;
-    // ----------------------
 
     private JComboBox<String> filterBox;
 
@@ -36,7 +34,7 @@ public class ManagerPanel extends JPanel {
     public ManagerPanel(ManagementFrame frame) {
         this.frame = frame;
         buildPanel();
-        loadData();
+        refreshDropdownData();
         setupInteractiveLogic();
     }
 
@@ -44,11 +42,30 @@ public class ManagerPanel extends JPanel {
         setLayout(new BorderLayout());
         setBorder(new EmptyBorder(10, 10, 10, 10)); // Outer padding for the whole window
 
-        // --- Top Header (Logout) ---
+        // --- Top Header ---
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+        // New Administration Buttons
+        JButton addUserBtn = new JButton("Add User");
+        addUserBtn.addActionListener(e -> handleAddUser());
+
+        JButton addGroupBtn = new JButton("Add Group");
+        addGroupBtn.addActionListener(e -> handleAddGroup());
+
+        JButton assignGroupBtn = new JButton("Assign Group");
+        assignGroupBtn.addActionListener(e -> handleAssignGroup());
+
+        // Logout Button
         logoutButton = new JButton("Logout");
         logoutButton.addActionListener(e -> frame.refreshPanels("LoginPanel"));
+
+        // Add components to top bar
+        topBar.add(addUserBtn);
+        topBar.add(addGroupBtn);
+        topBar.add(assignGroupBtn);
+        topBar.add(new JSeparator(SwingConstants.VERTICAL)); // Visual separator
         topBar.add(logoutButton);
+
         add(topBar, BorderLayout.NORTH);
 
         // --- Main Content (Split Pane) ---
@@ -169,7 +186,7 @@ public class ManagerPanel extends JPanel {
         rhs.gridx = 1; rhs.gridy = 1; rhs.weightx = 1.0; rhs.fill = GridBagConstraints.HORIZONTAL;
         rightPanel.add(taskDropdown, rhs);
 
-        // --- NEW: Update Status Section ---
+        // Update Status Section
         rhs.gridx = 0; rhs.gridy = 2; rhs.weightx = 0; rhs.fill = GridBagConstraints.NONE;
         rightPanel.add(new JLabel("Update Status:"), rhs);
 
@@ -183,7 +200,6 @@ public class ManagerPanel extends JPanel {
 
         rhs.gridx = 1; rhs.gridy = 2; rhs.weightx = 1.0; rhs.fill = GridBagConstraints.HORIZONTAL;
         rightPanel.add(updatePanel, rhs);
-        // ----------------------------------
 
         // Spacer to push content to top
         rhs.gridx = 0; rhs.gridy = 3; rhs.weighty = 1.0; rhs.gridwidth = 2; rhs.fill = GridBagConstraints.BOTH;
@@ -198,27 +214,27 @@ public class ManagerPanel extends JPanel {
         add(splitPane, BorderLayout.CENTER);
     }
 
-    private void loadData() {
+    // Renamed from loadData to indicate it clears and reloads
+    private void refreshDropdownData() {
         // Employees
+        employeeBox.removeAllItems();
         employeeBox.addItem(null);
         frame.getEmployeeController().getEmployees().values()
                 .forEach(employeeBox::addItem);
 
         // Groups
+        groupBox.removeAllItems();
         groupBox.addItem(null);
         frame.getGroupController().getGroups()
                 .forEach(groupBox::addItem);
 
-        // Statuses
-        frame.getTaskController().getStatuses()
-                .forEach(statusBox::addItem);
-        frame.getTaskController().getStatuses()
-                .forEach(updateStatusBox::addItem);
+        // Statuses (Static data, only load if empty)
+        if (statusBox.getItemCount() == 0) {
+            frame.getTaskController().getStatuses().forEach(statusBox::addItem);
+            frame.getTaskController().getStatuses().forEach(updateStatusBox::addItem);
+        }
 
-        // Populate the dropdown immediately
-        refreshTaskDropdown();
-
-        // Friendly null rendering
+        // Renderers
         ListCellRenderer<Object> friendlyRenderer = new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
@@ -226,8 +242,11 @@ public class ManagerPanel extends JPanel {
                 return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
             }
         };
-        employeeBox.setRenderer((ListCellRenderer)friendlyRenderer);
-        groupBox.setRenderer((ListCellRenderer)friendlyRenderer);
+        employeeBox.setRenderer((ListCellRenderer) friendlyRenderer);
+        groupBox.setRenderer((ListCellRenderer) friendlyRenderer);
+
+        // Populate the dropdown
+        refreshTaskDropdown();
     }
 
     /**
@@ -237,8 +256,6 @@ public class ManagerPanel extends JPanel {
     private void setupInteractiveLogic() {
         employeeBox.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED && employeeBox.getSelectedItem() != null) {
-                // Remove listener from group temporarily to prevent recursion loops
-                // or simply set selected item to null
                 groupBox.setSelectedItem(null);
             }
         });
@@ -250,9 +267,144 @@ public class ManagerPanel extends JPanel {
         });
     }
 
+    // --- NEW HANDLER METHODS ---
+
+    private void handleAddUser() {
+        // --- Required Fields ---
+        JTextField firstField = new JTextField();
+        JTextField lastField = new JTextField();
+        JTextField userField = new JTextField();
+        JPasswordField passField = new JPasswordField();
+        JTextField deptField = new JTextField(); // Required per loadEmployees logic
+
+        String[] roles = {"Laborer", "Manager"};
+        JComboBox<String> roleBox = new JComboBox<>(roles);
+
+        // --- Optional/Additional Fields ---
+        JTextField streetField = new JTextField();
+        JTextField cityField = new JTextField();
+        JTextField stateField = new JTextField();
+        JTextField countryField = new JTextField();
+        JTextField salaryField = new JTextField("0.0"); // Default to 0.0
+        JTextField hireDateField = new JTextField();
+        JTextField birthDateField = new JTextField();
+
+        // Layout the form
+        Object[] message = {
+                "First Name *:", firstField,
+                "Last Name *:", lastField,
+                "Username *:", userField,
+                "Password *:", passField,
+                "Role *:", roleBox,
+                "Department *:", deptField,
+                "-----------------",
+                "Street Address:", streetField,
+                "City:", cityField,
+                "State:", stateField,
+                "Country:", countryField,
+                "Salary:", salaryField,
+                "Hire Date (YYYY-MM-DD):", hireDateField,
+                "Birth Date (YYYY-MM-DD):", birthDateField
+        };
+
+        int option = JOptionPane.showConfirmDialog(this, message, "Add New User", JOptionPane.OK_CANCEL_OPTION);
+
+        if (option == JOptionPane.OK_OPTION) {
+            // Extract text
+            String fName = firstField.getText().trim();
+            String lName = lastField.getText().trim();
+            String user = userField.getText().trim();
+            String pass = new String(passField.getPassword());
+            String role = (String) roleBox.getSelectedItem();
+            String dept = deptField.getText().trim();
+
+            String street = streetField.getText().trim();
+            String city = cityField.getText().trim();
+            String state = stateField.getText().trim();
+            String country = countryField.getText().trim();
+            String hireDate = hireDateField.getText().trim();
+            String birthDate = birthDateField.getText().trim();
+
+            // Parse Salary
+            double salary = 0.0;
+            try {
+                salary = Double.parseDouble(salaryField.getText().trim());
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(this, "Salary must be a number.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Validate Required Fields
+            if (user.isEmpty() || pass.isEmpty() || fName.isEmpty() || lName.isEmpty() || dept.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill in all required fields marked with *.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Check if user already exists (Optional safety check)
+            if (frame.getEmployeeController().getEmployees().containsKey(user)) {
+                JOptionPane.showMessageDialog(this, "Username already exists.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Call the updated Controller method
+            frame.getEmployeeController().addNewEmployee(
+                    fName, lName, user, pass, role,
+                    street, city, state, country,
+                    salary, hireDate, birthDate, dept
+            );
+
+            refreshDropdownData(); // Update UI
+            JOptionPane.showMessageDialog(this, "User Added Successfully!");
+        }
+    }
+
+    private void handleAddGroup() {
+        String name = JOptionPane.showInputDialog(this, "Enter Group Name:");
+        if (name != null && !name.trim().isEmpty()) {
+            frame.getGroupController().createGroup(name);
+            refreshDropdownData(); // Update UI dropdowns
+            JOptionPane.showMessageDialog(this, "Group Created Successfully!");
+        }
+    }
+
+    private void handleAssignGroup() {
+        // Create fresh dropdowns for this popup
+        JComboBox<Employee> empSelect = new JComboBox<>();
+        frame.getEmployeeController().getEmployees().values().forEach(empSelect::addItem);
+
+        JComboBox<Group> grpSelect = new JComboBox<>();
+        frame.getGroupController().getGroups().forEach(grpSelect::addItem);
+
+        Object[] message = {
+                "Select User:", empSelect,
+                "Select Group:", grpSelect
+        };
+
+        int option = JOptionPane.showConfirmDialog(this, message, "Assign User to Group", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            Employee e = (Employee) empSelect.getSelectedItem();
+            Group g = (Group) grpSelect.getSelectedItem();
+
+            if (e != null && g != null) {
+                g.addEmployee(e);
+                JOptionPane.showMessageDialog(this, "Assigned " + e.getFirstName() + " to " + g.getName());
+            } else {
+                JOptionPane.showMessageDialog(this, "Selection invalid.", "Error", JOptionPane.WARNING_MESSAGE);
+            }
+        }
+    }
+
+    // ---------------------------
+
     private static class PlaceholderTask extends Task {
-        public PlaceholderTask() { super("","",null); }
-        @Override public String toString() { return " — Select a Task — "; }
+        public PlaceholderTask() {
+            super("", "", null);
+        }
+
+        @Override
+        public String toString() {
+            return " — Select a Task — ";
+        }
     }
 
     private void refreshTaskDropdown() {
@@ -308,12 +460,11 @@ public class ManagerPanel extends JPanel {
         JOptionPane.showMessageDialog(this, scrollPane, "Task Details", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    // --- NEW METHOD: Update Task Status ---
     private void updateTaskStatus() {
         Task selectedTask = (Task) taskDropdown.getSelectedItem();
         TaskStatus newStatus = (TaskStatus) updateStatusBox.getSelectedItem();
 
-        if (selectedTask == null) {
+        if (selectedTask == null || selectedTask instanceof PlaceholderTask) {
             JOptionPane.showMessageDialog(this, "Please select a task first.", "No Task Selected", JOptionPane.WARNING_MESSAGE);
             return;
         }
@@ -329,7 +480,6 @@ public class ManagerPanel extends JPanel {
 
         JOptionPane.showMessageDialog(this, "Status updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
     }
-    // ---------------------------------------
 
     private void createTask() {
         updatingTaskDropdown = true;
@@ -339,6 +489,7 @@ public class ManagerPanel extends JPanel {
 
         if (title.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Task title required", "Error", JOptionPane.ERROR_MESSAGE);
+            updatingTaskDropdown = false;
             return;
         }
 
@@ -349,13 +500,13 @@ public class ManagerPanel extends JPanel {
         // Validation: Ensure exactly one assignment target is selected
         if (e == null && g == null) {
             JOptionPane.showMessageDialog(this, "Please select either an Employee OR a Group.", "Missing Assignment", JOptionPane.WARNING_MESSAGE);
+            updatingTaskDropdown = false;
             return;
         }
 
-        // Note: (e != null && g != null) is technically impossible due to setupInteractiveLogic(),
-        // but good to keep for data integrity.
         if (e != null && g != null) {
             JOptionPane.showMessageDialog(this, "Task cannot be assigned to both Employee and Group.", "Error", JOptionPane.ERROR_MESSAGE);
+            updatingTaskDropdown = false;
             return;
         }
 
@@ -366,11 +517,13 @@ public class ManagerPanel extends JPanel {
         if (g != null) t.assignGroup(g);
 
         // Add to dropdown immediately
-        refreshTaskDropdown();  // <-- ensures the dropdown is updated with filters applied
+        refreshTaskDropdown();
 
         // Reset inputs
         taskTitleField.setText("");
         taskDescField.setText("");
+        employeeBox.setSelectedItem(null);
+        groupBox.setSelectedItem(null);
 
         updatingTaskDropdown = false;
     }
@@ -421,12 +574,11 @@ public class ManagerPanel extends JPanel {
         StringBuilder details = new StringBuilder();
         details.append("Group Name: ").append(selected.toString()).append("\n\n");
 
-        if(selected.getMembers() == null || selected.getMembers().isEmpty()) {
+        if (selected.getMembers() == null || selected.getMembers().isEmpty()) {
             details.append("Members: None");
-        }
-        else {
+        } else {
             details.append("Members (").append(selected.getMembers().size()).append("):\n");
-            for(Employee member : selected.getMembers()) {
+            for (Employee member : selected.getMembers()) {
                 details.append(" - ").append(member.getFirstName()).append(" ").append(member.getLastName())
                         .append(" (").append(member.getUsername()).append(")\n");
             }
