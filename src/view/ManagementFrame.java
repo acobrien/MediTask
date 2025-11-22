@@ -1,6 +1,8 @@
 package view;
 
 import controller.EmployeeController;
+import controller.GroupController;
+import controller.TaskController;
 import view.panels.ManagerPanel;
 import view.panels.LaborerPanel;
 import view.panels.LoginPanel;
@@ -11,6 +13,8 @@ import java.awt.*;
 public class ManagementFrame extends JFrame {
 
     private EmployeeController employeeController;
+    private TaskController taskController;
+    private GroupController groupController;
 
     private CardLayout cardLayout;
     private JPanel cardPanel;
@@ -18,6 +22,8 @@ public class ManagementFrame extends JFrame {
     public ManagementFrame() {
         super("MediTask");
         this.employeeController = new EmployeeController();
+        this.taskController = new TaskController();
+        this.groupController = new GroupController(this);
 
         buildPanel();
 
@@ -84,5 +90,8 @@ public class ManagementFrame extends JFrame {
     public EmployeeController getEmployeeController() {
         return employeeController;
     }
+
+    public TaskController getTaskController() { return taskController; }
+    public GroupController getGroupController() { return groupController; }
 
 }

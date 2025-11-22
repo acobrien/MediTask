@@ -1,583 +1,307 @@
 package view.panels;
 
 import view.ManagementFrame;
+import model.*;
+import controller.*;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.*;
-import java.lang.reflect.Field;
-import java.util.*;
-import java.util.List;
+import java.awt.event.ItemEvent;
 
-/**
- * ManagerPanel - provides basic management UI for:
- *  - viewing employees (loaded from EmployeeController via reflection)
- *  - creating tasks and assigning them to users or groups
- *  - creating/managing groups and statuses
- *
- * This implementation intentionally keeps task/group/status models inside the panel
- * (simple in-memory models) to avoid modifying existing controller classes.
- *
- * Note: We use reflection to read EmployeeController.employees and Employee fields
- *       so the rest of your project does not need changes.
- */
 public class ManagerPanel extends JPanel {
 
-    private ManagementFrame managementFrame;
+    private ManagementFrame frame;
 
-    // Employee UI
-    private DefaultListModel<String> employeeListModel;
-    private JList<String> employeeList;
+    private JComboBox<Employee> employeeBox;
+    private JComboBox<Group> groupBox;
+    private JComboBox<TaskStatus> statusBox;
 
-    // Task UI
-    private DefaultListModel<Task> taskListModel;
-    private JList<Task> taskList;
+    private JTextField taskTitleField;
+    private JTextArea taskDescField;
 
-    // Status UI
-    private DefaultListModel<String> statusListModel;
-    private JList<String> statusList;
+    private DefaultListModel<Task> taskListModel = new DefaultListModel<>();
+    private JList<Task> taskList = new JList<>(taskListModel);
 
-    // Groups UI
-    private DefaultListModel<Group> groupListModel;
-    private JList<Group> groupList;
+    private JComboBox<String> filterBox;
 
-    // simple maps for quick lookup
-    private Map<String, Group> groups = new TreeMap<>();
-    private List<String> statuses = new ArrayList<>();
+    private JButton viewDetailsButton;
 
-    // For task id generation
-    private int nextTaskId = 1;
-
-    public ManagerPanel(ManagementFrame managementFrame) {
-        this.managementFrame = managementFrame;
-        initModels();
+    public ManagerPanel(ManagementFrame frame) {
+        this.frame = frame;
         buildPanel();
-        loadEmployeesFromController();
-    }
-
-    private void initModels() {
-        employeeListModel = new DefaultListModel<>();
-        taskListModel = new DefaultListModel<>();
-        statusListModel = new DefaultListModel<>();
-        groupListModel = new DefaultListModel<>();
-
-        // default statuses if none are added by admin
-        statuses.add("Open");
-        statuses.add("In-Progress");
-        statuses.add("Complete");
-        for (String s : statuses) statusListModel.addElement(s);
-
-        // default admin group
-        Group adminGroup = new Group("Admins");
-        groups.put(adminGroup.name, adminGroup);
-        groupListModel.addElement(adminGroup);
+        loadData();
+        setupInteractiveLogic();
     }
 
     private void buildPanel() {
         setLayout(new BorderLayout());
-        setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        // Title
-        JLabel title = new JLabel("Manager Dashboard");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
-        add(title, BorderLayout.NORTH);
+        // ----- Left: Task creation panel -----
+        JPanel leftPanel = new JPanel();
+        leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
+        leftPanel.setBorder(BorderFactory.createTitledBorder("Create Task"));
 
-        // Main split panes
-        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        mainSplit.setResizeWeight(0.25);
+        // Task title
+        JPanel titlePanel = new JPanel(new BorderLayout(5, 5));
+        titlePanel.add(new JLabel("Title:"), BorderLayout.WEST);
+        taskTitleField = new JTextField();
+        titlePanel.add(taskTitleField, BorderLayout.CENTER);
+        leftPanel.add(titlePanel);
+        leftPanel.add(Box.createVerticalStrut(10));
 
-        // Left: Employees
-        JPanel left = buildEmployeesPanel();
-        mainSplit.setLeftComponent(left);
+        // Description
+        JPanel descPanel = new JPanel(new BorderLayout(5, 5));
+        descPanel.add(new JLabel("Description:"), BorderLayout.NORTH);
+        taskDescField = new JTextArea(4, 20);
+        descPanel.add(new JScrollPane(taskDescField), BorderLayout.CENTER);
+        leftPanel.add(descPanel);
+        leftPanel.add(Box.createVerticalStrut(10));
 
-        // Right side split: center (tasks) + right (groups/statuses)
-        JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
-        rightSplit.setResizeWeight(0.6);
+        // Assignment panel
+        JPanel assignPanel = new JPanel(new GridLayout(3, 2, 5, 5));
 
-        JPanel center = buildTasksPanel();
-        rightSplit.setLeftComponent(center);
+        assignPanel.add(new JLabel("Assign Employee:"));
+        employeeBox = new JComboBox<>();
+        assignPanel.add(employeeBox);
 
-        JPanel rightPanel = buildGroupsAndStatusesPanel();
-        rightSplit.setRightComponent(rightPanel);
+        assignPanel.add(new JLabel("Assign Group:"));
+        groupBox = new JComboBox<>();
+        assignPanel.add(groupBox);
 
-        mainSplit.setRightComponent(rightSplit);
+        assignPanel.add(new JLabel("Status:"));
+        statusBox = new JComboBox<>();
+        assignPanel.add(statusBox);
 
-        add(mainSplit, BorderLayout.CENTER);
+        leftPanel.add(assignPanel);
+        leftPanel.add(Box.createVerticalStrut(10));
+
+        // View Details button (Popup)
+        viewDetailsButton = new JButton("View Selected Details");
+        viewDetailsButton.addActionListener(e -> showDetails());
+        leftPanel.add(viewDetailsButton);
+        leftPanel.add(Box.createVerticalStrut(20));
+
+        // Create button
+        JButton createButton = new JButton("Create Task");
+        createButton.addActionListener(e -> createTask());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        createButton.setPreferredSize(new Dimension(200, 40));
+        buttonPanel.add(createButton);
+        leftPanel.add(buttonPanel);
+
+        // ----- Right: Task list panel -----
+        JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
+        rightPanel.setBorder(BorderFactory.createTitledBorder("Tasks"));
+
+        // Filter combo box
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        filterPanel.add(new JLabel("Filter:"));
+        filterBox = new JComboBox<>(new String[]{"All Tasks", "My Tasks"});
+        filterBox.addActionListener(e -> refreshTaskList());
+        filterPanel.add(filterBox);
+        rightPanel.add(filterPanel, BorderLayout.NORTH);
+
+        // Task list
+        taskList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane listScroll = new JScrollPane(taskList);
+        rightPanel.add(listScroll, BorderLayout.CENTER);
+
+        // ----- Split pane -----
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
+        splitPane.setDividerLocation(350);
+        splitPane.setResizeWeight(0.4);
+
+        add(splitPane, BorderLayout.CENTER);
     }
 
-    // -----------------------
-    // Employees panel
-    // -----------------------
-    private JPanel buildEmployeesPanel() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBorder(BorderFactory.createTitledBorder("Employees"));
+    private void loadData() {
+        // Employees
+        employeeBox.addItem(null); // Default empty option
+        frame.getEmployeeController().getEmployees().values()
+                .forEach(employeeBox::addItem);
 
-        employeeList = new JList<>(employeeListModel);
-        employeeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        JScrollPane sc = new JScrollPane(employeeList);
-        p.add(sc, BorderLayout.CENTER);
+        // Groups
+        groupBox.addItem(null); // Default empty option
+        frame.getGroupController().getGroups()
+                .forEach(groupBox::addItem);
 
-        JPanel btns = new JPanel(new GridLayout(0, 1, 4, 4));
-        JButton refreshBtn = new JButton("Refresh");
-        refreshBtn.addActionListener(e -> loadEmployeesFromController());
-        btns.add(refreshBtn);
+        // Statuses
+        frame.getTaskController().getStatuses()
+                .forEach(statusBox::addItem);
 
-        JButton detailsBtn = new JButton("Show Details");
-        detailsBtn.addActionListener(e -> showSelectedEmployeeDetails());
-        btns.add(detailsBtn);
+        // Tasks
+        frame.getTaskController().getTasks()
+                .forEach(taskListModel::addElement);
 
-        p.add(btns, BorderLayout.SOUTH);
+        // Friendly null rendering for Dropdowns
+        ListCellRenderer<Object> friendlyRenderer = new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                String text;
+                if (value == null) {
+                    text = "Select";
+                } else {
+                    text = value.toString();
+                }
+                return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
+            }
+        };
 
-        return p;
+        employeeBox.setRenderer((ListCellRenderer)friendlyRenderer);
+        groupBox.setRenderer((ListCellRenderer)friendlyRenderer);
     }
 
-    private void showSelectedEmployeeDetails() {
-        String sel = employeeList.getSelectedValue();
-        if (sel == null) {
-            JOptionPane.showMessageDialog(this, "Select an employee first.", "No selection", JOptionPane.WARNING_MESSAGE);
+    /**
+     * Sets up logic to ensure mutual exclusivity.
+     * If an Employee is selected, Group is deselected, and vice versa.
+     */
+    private void setupInteractiveLogic() {
+        employeeBox.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED && employeeBox.getSelectedItem() != null) {
+                // Remove listener from group temporarily to prevent recursion loops
+                // or simply set selected item to null
+                groupBox.setSelectedItem(null);
+            }
+        });
+
+        groupBox.addItemListener(e -> {
+            if (e.getStateChange() == ItemEvent.SELECTED && groupBox.getSelectedItem() != null) {
+                employeeBox.setSelectedItem(null);
+            }
+        });
+    }
+
+    private void refreshTaskList() {
+        taskListModel.clear();
+
+        Employee currentUser = frame.getEmployeeController().getCurrentUser();
+        String filter = (String) filterBox.getSelectedItem();
+
+        for (Task t : frame.getTaskController().getTasks()) {
+            if ("All Tasks".equals(filter)) {
+                taskListModel.addElement(t);
+            } else if ("My Tasks".equals(filter)) {
+                boolean assignedToMe = t.getAssignee() != null && t.getAssignee().equals(currentUser);
+                boolean inMyGroup = t.getGroup() != null && t.getGroup().getMembers().contains(currentUser);
+
+                if (assignedToMe || inMyGroup) {
+                    taskListModel.addElement(t);
+                }
+            }
+        }
+    }
+
+    private void createTask() {
+        String title = taskTitleField.getText().trim();
+        String desc = taskDescField.getText().trim();
+
+        if (title.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Task title required", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // Attempt to load more fields from Employee via reflection
-        try {
-            Object emp = findEmployeeObjectByUsername(sel);
-            if (emp == null) {
-                JOptionPane.showMessageDialog(this, "Employee object not found.", "Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
+        TaskStatus status = (TaskStatus) statusBox.getSelectedItem();
+        Employee e = (Employee) employeeBox.getSelectedItem();
+        Group g = (Group) groupBox.getSelectedItem();
 
-            String username = getFieldString(emp, "username");
-            String firstName = getFieldString(emp, "firstName");
-            String lastName = getFieldString(emp, "lastName");
-            String street = getFieldString(emp, "streetAddress");
-            String city = getFieldString(emp, "city");
-            String state = getFieldString(emp, "state");
-            String country = getFieldString(emp, "country");
-            String salary = getFieldString(emp, "salary");
-            String role = getFieldString(emp, "role");
-            String department = getFieldString(emp, "department");
-            String hireDate = getFieldString(emp, "hireDate");
-            String birthDate = getFieldString(emp, "birthDate");
+        // Validation: Ensure exactly one assignment target is selected
+        if (e == null && g == null) {
+            JOptionPane.showMessageDialog(this, "Please select either an Employee OR a Group.", "Missing Assignment", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("username: ").append(username).append("\n");
-            sb.append("Name: ").append(firstName).append(" ").append(lastName).append("\n");
-            sb.append("Role: ").append(role).append("\n");
-            sb.append("Department: ").append(department).append("\n");
-            sb.append("Salary: ").append(salary).append("\n");
-            sb.append("Address: ").append(street).append(", ").append(city).append(", ").append(state).append(", ").append(country).append("\n");
-            sb.append("Hire Date: ").append(hireDate).append("\n");
-            sb.append("Birth Date: ").append(birthDate).append("\n");
+        // Note: (e != null && g != null) is technically impossible due to setupInteractiveLogic(),
+        // but good to keep for data integrity.
+        if (e != null && g != null) {
+            JOptionPane.showMessageDialog(this, "Task cannot be assigned to both Employee and Group.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
-            JOptionPane.showMessageDialog(this, sb.toString(), "Employee Details", JOptionPane.INFORMATION_MESSAGE);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Failed to retrieve details: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        // Create logic
+        Task t = frame.getTaskController().createTask(title, desc, status);
+
+        if (e != null) t.assignEmployee(e);
+        if (g != null) t.assignGroup(g);
+
+        taskListModel.addElement(t);
+
+        // Reset inputs
+        taskTitleField.setText("");
+        taskDescField.setText("");
+        // Dropdowns remain selected per user workflow preference,
+        // or you can reset them:
+        // employeeBox.setSelectedItem(null);
+        // groupBox.setSelectedItem(null);
+        JOptionPane.showMessageDialog(this, "Task created successfully!");
+    }
+
+    private void showDetails() {
+        Employee selectedEmp = (Employee) employeeBox.getSelectedItem();
+        Group selectedGroup = (Group) groupBox.getSelectedItem();
+
+        if (selectedEmp == null && selectedGroup == null) {
+            JOptionPane.showMessageDialog(this, "Please select an Employee or Group to view details.", "No Selection", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        if (selectedEmp != null) {
+            // Show Employee Popup
+            showEmployeePopup(selectedEmp);
+        } else {
+            // Show Group Popup
+            showGroupPopup(selectedGroup);
         }
     }
 
-    // -----------------------
-    // Tasks panel
-    // -----------------------
-    private JPanel buildTasksPanel() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBorder(BorderFactory.createTitledBorder("Tasks"));
+    private void showEmployeePopup(Employee selected) {
+        // Fetch fresh data
+        Employee e = frame.getEmployeeController().getEmployees().get(selected.getUsername());
+        if (e == null) e = selected; // Fallback
 
-        taskList = new JList<>(taskListModel);
-        taskList.setCellRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                Task t = (Task) value;
-                String text = String.format("[%d] %s - %s", t.id, t.title, t.status);
-                return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
-            }
-        });
-        JScrollPane sc = new JScrollPane(taskList);
-        p.add(sc, BorderLayout.CENTER);
+        StringBuilder details = new StringBuilder();
+        details.append("Individual Employee\n\n");
+        details.append("Name: ").append(e.getFirstName()).append(" ").append(e.getLastName()).append("\n");
+        details.append("Birth Date: ").append(e.getBirthDate()).append("\n");
+        details.append("Address: ").append(e.getStreetAddress()).append(", ").append(e.getCity()).append(", ").append(e.getState()).append(", ").append(e.getCountry()).append("\n\n");
 
-        // Creation form
-        JPanel form = new JPanel();
-        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-        form.setBorder(new EmptyBorder(6, 6, 6, 6));
+        details.append("ID: ").append(e.getId()).append("\n");
+        details.append("Username: ").append(e.getUsername()).append("\n");
+        details.append("Password: ").append(e.getPassword()).append("\n\n");
 
-        JTextField titleField = new JTextField();
-        JTextArea descField = new JTextArea(3, 20);
-        JTextField assigneeField = new JTextField(); // can be username or group name prefixed with "group:"
-        JComboBox<String> statusCombo = new JComboBox<>();
-        refreshStatusCombo(statusCombo);
+        details.append("Department: ").append(e.getDepartment()).append("\n");
+        details.append("Role: ").append(e.getRole()).append("\n");
+        details.append("Hire Date: ").append(e.getHireDate()).append("\n");
+        details.append("Salary: ").append(e.getSalary()).append("\n");
 
-        // Assignment dropdown helpers
-        JComboBox<String> assignToCombo = new JComboBox<>();
-        assignToCombo.addItem("-- assign to --");
-        assignToCombo.addItem("User (select below)");
-        assignToCombo.addItem("Group (select below)");
-
-        JButton addTaskBtn = new JButton("Create Task");
-        addTaskBtn.addActionListener(e -> {
-            String title = titleField.getText().trim();
-            String desc = descField.getText().trim();
-            String assignee = assigneeField.getText().trim();
-            String status = (String) statusCombo.getSelectedItem();
-
-            if (title.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Title is required", "Validation", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-
-            // simple validation: if assignee empty that's okay (unassigned)
-            Task tsk = new Task(nextTaskId++, title, desc, assignee, status == null ? "Open" : status);
-            taskListModel.addElement(tsk);
-
-            // clear fields
-            titleField.setText("");
-            descField.setText("");
-            assigneeField.setText("");
-        });
-
-        // Controls to change status of selected task
-        JButton cycleStatusBtn = new JButton("Next Status");
-        cycleStatusBtn.addActionListener(e -> {
-            Task sel = taskList.getSelectedValue();
-            if (sel == null) {
-                JOptionPane.showMessageDialog(this, "Select a task first.", "No selection", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            // cycle to next available status in our statuses list
-            int idx = statuses.indexOf(sel.status);
-            if (idx < 0) idx = 0;
-            idx = (idx + 1) % statuses.size();
-            sel.status = statuses.get(idx);
-            taskList.repaint();
-        });
-
-        JButton assignSelectedToEmployeeBtn = new JButton("Assign selected -> Selected employee");
-        assignSelectedToEmployeeBtn.addActionListener(e -> {
-            Task selTask = taskList.getSelectedValue();
-            String selEmployee = employeeList.getSelectedValue();
-            if (selTask == null || selEmployee == null) {
-                JOptionPane.showMessageDialog(this, "Select both a task and an employee.", "Selection needed", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            selTask.assignee = selEmployee;
-            taskList.repaint();
-        });
-
-        JButton assignSelectedToGroupBtn = new JButton("Assign selected -> Selected group");
-        assignSelectedToGroupBtn.addActionListener(e -> {
-            Task selTask = taskList.getSelectedValue();
-            Group selGroup = groupList.getSelectedValue();
-            if (selTask == null || selGroup == null) {
-                JOptionPane.showMessageDialog(this, "Select both a task and a group.", "Selection needed", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            selTask.assignee = "group:" + selGroup.name;
-            taskList.repaint();
-        });
-
-        JButton markCompleteBtn = new JButton("Mark Complete");
-        markCompleteBtn.addActionListener(e -> {
-            Task sel = taskList.getSelectedValue();
-            if (sel == null) {
-                JOptionPane.showMessageDialog(this, "Select a task first.", "No selection", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            // set to last status if present, otherwise "Complete"
-            if (statuses.contains("Complete")) sel.status = "Complete";
-            else sel.status = statuses.get(statuses.size()-1);
-            taskList.repaint();
-        });
-
-        // Layout the form components
-        form.add(new JLabel("Title:"));
-        form.add(titleField);
-        form.add(Box.createVerticalStrut(4));
-        form.add(new JLabel("Description:"));
-        form.add(new JScrollPane(descField));
-        form.add(Box.createVerticalStrut(4));
-        form.add(new JLabel("Assignee (username OR group:<groupname>):"));
-        form.add(assigneeField);
-        form.add(Box.createVerticalStrut(4));
-        form.add(new JLabel("Status:"));
-        form.add(statusCombo);
-        form.add(Box.createVerticalStrut(6));
-        JPanel row = new JPanel(new GridLayout(1, 2, 4, 4));
-        row.add(addTaskBtn);
-        row.add(markCompleteBtn);
-        form.add(row);
-        form.add(Box.createVerticalStrut(6));
-        form.add(cycleStatusBtn);
-        form.add(assignSelectedToEmployeeBtn);
-        form.add(assignSelectedToGroupBtn);
-
-        p.add(form, BorderLayout.SOUTH);
-
-        return p;
+        JOptionPane.showMessageDialog(this, details.toString(), "Employee Details", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private void refreshStatusCombo(JComboBox<String> combo) {
-        combo.removeAllItems();
-        for (String s : statuses) combo.addItem(s);
-    }
+    private void showGroupPopup(Group selected) {
+        // Fetch fresh data if needed, assuming 'selected' contains members
+        StringBuilder details = new StringBuilder();
+        details.append("Group Name: ").append(selected.toString()).append("\n\n");
 
-    // -----------------------
-    // Groups & Statuses panel
-    // -----------------------
-    private JPanel buildGroupsAndStatusesPanel() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBorder(BorderFactory.createTitledBorder("Groups & Statuses"));
-
-        // Split vertically for statuses (top) and groups (bottom)
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        split.setResizeWeight(0.35);
-
-        // Statuses panel
-        JPanel statusesPanel = new JPanel(new BorderLayout());
-        statusesPanel.setBorder(BorderFactory.createTitledBorder("Task Statuses"));
-
-        statusList = new JList<>(statusListModel);
-        JScrollPane ssc = new JScrollPane(statusList);
-        statusesPanel.add(ssc, BorderLayout.CENTER);
-
-        JPanel stBtns = new JPanel(new GridLayout(1, 3, 4, 4));
-        JTextField newStatusField = new JTextField();
-        JButton addStatusBtn = new JButton("Add");
-        addStatusBtn.addActionListener(e -> {
-            String s = newStatusField.getText().trim();
-            if (s.isEmpty()) return;
-            if (!statuses.contains(s)) {
-                statuses.add(s);
-                statusListModel.addElement(s);
-                newStatusField.setText("");
-            } else {
-                JOptionPane.showMessageDialog(this, "Status already exists.", "Duplicate", JOptionPane.WARNING_MESSAGE);
-            }
-        });
-        JButton removeStatusBtn = new JButton("Remove");
-        removeStatusBtn.addActionListener(e -> {
-            String sel = statusList.getSelectedValue();
-            if (sel == null) return;
-            if (sel.equalsIgnoreCase("Open") || sel.equalsIgnoreCase("In-Progress") || sel.equalsIgnoreCase("Complete")) {
-                // allow removal but warn
-                int res = JOptionPane.showConfirmDialog(this, "This is a common default status. Remove anyway?", "Confirm", JOptionPane.YES_NO_OPTION);
-                if (res != JOptionPane.YES_OPTION) return;
-            }
-            statuses.remove(sel);
-            statusListModel.removeElement(sel);
-        });
-
-        stBtns.add(newStatusField);
-        stBtns.add(addStatusBtn);
-        stBtns.add(removeStatusBtn);
-        statusesPanel.add(stBtns, BorderLayout.SOUTH);
-
-        // Groups panel
-        JPanel groupsPanel = new JPanel(new BorderLayout());
-        groupsPanel.setBorder(BorderFactory.createTitledBorder("Groups"));
-
-        groupList = new JList<>(groupListModel);
-        groupList.setCellRenderer(new DefaultListCellRenderer() {
-            @Override
-            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                Group g = (Group) value;
-                return super.getListCellRendererComponent(list, g.name + " (" + g.members.size() + ")", index, isSelected, cellHasFocus);
-            }
-        });
-        JScrollPane gsc = new JScrollPane(groupList);
-        groupsPanel.add(gsc, BorderLayout.CENTER);
-
-        // group controls
-        JPanel gControls = new JPanel();
-        gControls.setLayout(new BoxLayout(gControls, BoxLayout.Y_AXIS));
-        JTextField newGroupField = new JTextField();
-        JButton addGroupBtn = new JButton("Create Group");
-        addGroupBtn.addActionListener(e -> {
-            String name = newGroupField.getText().trim();
-            if (name.isEmpty()) return;
-            if (groups.containsKey(name)) {
-                JOptionPane.showMessageDialog(this, "Group already exists.", "Duplicate", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            Group g = new Group(name);
-            groups.put(name, g);
-            groupListModel.addElement(g);
-            newGroupField.setText("");
-        });
-
-        JButton deleteGroupBtn = new JButton("Delete Group");
-        deleteGroupBtn.addActionListener(e -> {
-            Group sel = groupList.getSelectedValue();
-            if (sel == null) return;
-            if (sel.name.equals("Admins")) {
-                JOptionPane.showMessageDialog(this, "Cannot delete the default Admins group.", "Protected", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            groups.remove(sel.name);
-            groupListModel.removeElement(sel);
-        });
-
-        JPanel assignPanel = new JPanel(new GridLayout(1, 2, 4, 4));
-        JButton addMemberBtn = new JButton("Add Selected Employee");
-        addMemberBtn.addActionListener(e -> {
-            Group sel = groupList.getSelectedValue();
-            String emp = employeeList.getSelectedValue();
-            if (sel == null || emp == null) {
-                JOptionPane.showMessageDialog(this, "Select both a group and an employee.", "Selection required", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            if (!sel.members.contains(emp)) {
-                sel.members.add(emp);
-                groupList.repaint();
-            }
-        });
-        JButton removeMemberBtn = new JButton("Remove Selected Employee");
-        removeMemberBtn.addActionListener(e -> {
-            Group sel = groupList.getSelectedValue();
-            String emp = employeeList.getSelectedValue();
-            if (sel == null || emp == null) {
-                JOptionPane.showMessageDialog(this, "Select both a group and an employee.", "Selection required", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            sel.members.remove(emp);
-            groupList.repaint();
-        });
-        assignPanel.add(addMemberBtn);
-        assignPanel.add(removeMemberBtn);
-
-        gControls.add(new JLabel("New group name:"));
-        gControls.add(newGroupField);
-        gControls.add(addGroupBtn);
-        gControls.add(deleteGroupBtn);
-        gControls.add(Box.createVerticalStrut(6));
-        gControls.add(assignPanel);
-
-        groupsPanel.add(gControls, BorderLayout.SOUTH);
-
-        split.setTopComponent(statusesPanel);
-        split.setBottomComponent(groupsPanel);
-
-        p.add(split, BorderLayout.CENTER);
-
-        // Bottom quick-actions (example: assign selected employee to Admins)
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton promoteToAdminBtn = new JButton("Add selected emp -> Admins");
-        promoteToAdminBtn.addActionListener(e -> {
-            String emp = employeeList.getSelectedValue();
-            if (emp == null) {
-                JOptionPane.showMessageDialog(this, "Select an employee first", "No selection", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
-            Group admins = groups.get("Admins");
-            if (!admins.members.contains(emp)) {
-                admins.members.add(emp);
-                groupList.repaint();
-            }
-        });
-        bottom.add(promoteToAdminBtn);
-
-        p.add(bottom, BorderLayout.SOUTH);
-
-        return p;
-    }
-
-    // -----------------------
-    // Reflection helpers to read EmployeeController employees map and Employee fields
-    // -----------------------
-    private void loadEmployeesFromController() {
-        employeeListModel.clear();
-        try {
-            Object controller = managementFrame.getEmployeeController();
-            if (controller == null) return;
-
-            Field employeesField = controller.getClass().getDeclaredField("employees");
-            employeesField.setAccessible(true);
-            Object rawMap = employeesField.get(controller);
-
-            if (rawMap instanceof Map) {
-                Map<?, ?> map = (Map<?, ?>) rawMap;
-                // keys are usernames; we will display keys
-                List<String> keys = new ArrayList<>();
-                for (Object k : map.keySet()) {
-                    keys.add(String.valueOf(k));
-                }
-                Collections.sort(keys);
-                for (String k : keys) employeeListModel.addElement(k);
-            } else {
-                System.err.println("employees field not a Map instance.");
-            }
-        } catch (NoSuchFieldException nsfe) {
-            System.err.println("No employees field found on EmployeeController: " + nsfe.getMessage());
-        } catch (Exception ex) {
-            System.err.println("Failed to load employees: " + ex.getMessage());
-            ex.printStackTrace();
+        if(selected.getMembers() == null || selected.getMembers().isEmpty()) {
+            details.append("Members: None");
         }
-    }
-
-    // Find Employee object by username using reflection on controller.employees
-    private Object findEmployeeObjectByUsername(String username) {
-        try {
-            Object controller = managementFrame.getEmployeeController();
-            Field employeesField = controller.getClass().getDeclaredField("employees");
-            employeesField.setAccessible(true);
-            Object rawMap = employeesField.get(controller);
-            if (rawMap instanceof Map) {
-                Map<?, ?> map = (Map<?, ?>) rawMap;
-                return map.get(username);
+        else {
+            details.append("Members (").append(selected.getMembers().size()).append("):\n");
+            for(Employee member : selected.getMembers()) {
+                details.append(" - ").append(member.getFirstName()).append(" ").append(member.getLastName())
+                        .append(" (").append(member.getUsername()).append(")\n");
             }
-        } catch (Exception e) {
-            // ignore
-        }
-        return null;
-    }
-
-    private String getFieldString(Object obj, String fieldName) {
-        try {
-            Field f = obj.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            Object val = f.get(obj);
-            return val == null ? "" : String.valueOf(val);
-        } catch (NoSuchFieldException nsfe) {
-            // not all fields exist; return empty
-            return "";
-        } catch (Exception ex) {
-            return "";
-        }
-    }
-
-    // -----------------------
-    // Inner model classes
-    // -----------------------
-    private static class Task {
-        int id;
-        String title;
-        String description;
-        String assignee; // username or "group:<groupname>"
-        String status;
-
-        Task(int id, String title, String description, String assignee, String status) {
-            this.id = id;
-            this.title = title;
-            this.description = description;
-            this.assignee = assignee;
-            this.status = status;
         }
 
-        @Override
-        public String toString() {
-            return String.format("[%d] %s (%s) -> %s", id, title, status, (assignee == null || assignee.isEmpty()) ? "unassigned" : assignee);
-        }
-    }
+        JTextArea textArea = new JTextArea(details.toString());
+        textArea.setEditable(false);
+        textArea.setOpaque(false);
 
-    private static class Group {
-        String name;
-        Set<String> members = new TreeSet<>();
+        // Using a scroll pane inside the OptionPane in case the group is very large
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(350, 200));
+        scrollPane.setBorder(null);
 
-        Group(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String toString() {
-            return name;
-        }
+        JOptionPane.showMessageDialog(this, scrollPane, "Group Details", JOptionPane.INFORMATION_MESSAGE);
     }
 }

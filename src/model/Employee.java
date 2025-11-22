@@ -42,6 +42,19 @@ public class Employee implements Comparable<Employee> {
 
     public String getPassword() { return password; }
     public String getRole() { return role; }
+    public String getUsername() { return username; }
+    public int getId() { return id; }
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
+    public String getStreetAddress() { return streetAddress; }
+    public String getCity() { return city; }
+    public String getState() { return state; }
+    public String getCountry() { return country; }
+    public double getSalary() { return salary; }
+    public String getHireDate() { return hireDate; }
+    public String getBirthDate() { return birthDate; }
+    public String getDepartment() { return department; }
+
 
     @Override
     public String toString() {

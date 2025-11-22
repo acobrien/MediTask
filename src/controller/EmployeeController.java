@@ -8,6 +8,8 @@ import java.util.TreeMap;
 
 public class EmployeeController {
 
+    private Employee currentUser;
+
     private TreeMap<String, Employee> employees = new TreeMap<>();
     private TreeMap<String, Employee> managers = new TreeMap<>(); // A subset of employees, distinct from laborers
     private TreeMap<String, Employee> laborers = new TreeMap<>(); // A subset of employees, distinct from managers
@@ -84,11 +86,22 @@ public class EmployeeController {
 
         // Determine role
         String role = e.getRole();
+        currentUser = e;
         if (role.equalsIgnoreCase("Manager")) return 0;
         if (role.equalsIgnoreCase("Laborer")) return 1;
 
         // Should never happen, but safe fallback
         return -1;
+    }
+
+    public Employee getCurrentUser() { return currentUser; }
+
+    public TreeMap<String, Employee> getEmployees() {
+        return employees;
+    }
+
+    public TreeMap<String, Employee> getManagers() {
+        return managers;
     }
 
     // Helper Methods
