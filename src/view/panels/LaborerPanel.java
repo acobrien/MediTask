@@ -61,13 +61,6 @@ public class LaborerPanel extends JPanel {
         contentPanel.add(new JLabel("Select Task:"), gbc);
 
         taskDropdown = new JComboBox<>();
-        // Auto-show details when a task is picked? Or keep it manual with a button.
-        // Let's auto-show for better UX, similar to ManagerPanel logic
-        taskDropdown.addActionListener(e -> {
-            if(!updatingTaskDropdown) {
-                // Optional: could auto-update status box to current task status here
-            }
-        });
 
         gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 1.0;
         contentPanel.add(taskDropdown, gbc);
@@ -100,11 +93,7 @@ public class LaborerPanel extends JPanel {
         add(contentPanel, BorderLayout.CENTER);
     }
 
-    /**
-     * Refreshes the list of tasks.
-     * Unlike ManagerPanel, this strictly filters for tasks assigned to the Current User
-     * or the Group the user belongs to.
-     */
+    // Refresh the list of tasks assigned to the user
     private void refreshData() {
         updatingTaskDropdown = true;
 
@@ -198,4 +187,5 @@ public class LaborerPanel extends JPanel {
             return " — Select a Task — ";
         }
     }
+
 }

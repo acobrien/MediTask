@@ -124,14 +124,15 @@ public class EmployeeController {
 
         if ("Manager".equalsIgnoreCase(role)) {
             managers.put(username, e);
-        } else {
+        }
+        else {
             laborers.put(username, e);
         }
-
-        // Optional: You might want to append this to the CSV file here so data persists.
     }
 
-    public Employee getCurrentUser() { return currentUser; }
+    public Employee getCurrentUser() {
+        return currentUser;
+    }
 
     public TreeMap<String, Employee> getEmployees() {
         return employees;

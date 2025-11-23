@@ -3,8 +3,8 @@ package model;
 public class Task {
     private String title;
     private String description;
-    private Employee assignee;   // optional
-    private Group group;         // optional
+    private Employee assignee;
+    private Group group;
     private TaskStatus status;
 
     public Task(String title, String description, TaskStatus status) {

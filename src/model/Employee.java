@@ -40,9 +40,8 @@ public class Employee implements Comparable<Employee> {
         this.role = role;
     }
 
-    public String getPassword() { return password; }
-    public String getRole() { return role; }
     public String getUsername() { return username; }
+    public String getPassword() { return password; }
     public int getId() { return id; }
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
@@ -54,7 +53,7 @@ public class Employee implements Comparable<Employee> {
     public String getHireDate() { return hireDate; }
     public String getBirthDate() { return birthDate; }
     public String getDepartment() { return department; }
-
+    public String getRole() { return role; }
 
     @Override
     public String toString() {

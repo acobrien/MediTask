@@ -214,7 +214,6 @@ public class ManagerPanel extends JPanel {
         add(splitPane, BorderLayout.CENTER);
     }
 
-    // Renamed from loadData to indicate it clears and reloads
     private void refreshDropdownData() {
         // Employees
         employeeBox.removeAllItems();
@@ -242,17 +241,14 @@ public class ManagerPanel extends JPanel {
                 return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
             }
         };
-        employeeBox.setRenderer((ListCellRenderer) friendlyRenderer);
-        groupBox.setRenderer((ListCellRenderer) friendlyRenderer);
+        employeeBox.setRenderer(friendlyRenderer);
+        groupBox.setRenderer(friendlyRenderer);
 
         // Populate the dropdown
         refreshTaskDropdown();
     }
 
-    /**
-     * Sets up logic to ensure mutual exclusivity.
-     * If an Employee is selected, Group is deselected, and vice versa.
-     */
+    // Enforces mutual exclusivity between assigning to a person OR a group
     private void setupInteractiveLogic() {
         employeeBox.addItemListener(e -> {
             if (e.getStateChange() == ItemEvent.SELECTED && employeeBox.getSelectedItem() != null) {
@@ -266,8 +262,6 @@ public class ManagerPanel extends JPanel {
             }
         });
     }
-
-    // --- NEW HANDLER METHODS ---
 
     private void handleAddUser() {
         // --- Required Fields ---
@@ -330,7 +324,8 @@ public class ManagerPanel extends JPanel {
             double salary = 0.0;
             try {
                 salary = Double.parseDouble(salaryField.getText().trim());
-            } catch (NumberFormatException e) {
+            }
+            catch (NumberFormatException e) {
                 JOptionPane.showMessageDialog(this, "Salary must be a number.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
@@ -394,8 +389,6 @@ public class ManagerPanel extends JPanel {
             }
         }
     }
-
-    // ---------------------------
 
     private static class PlaceholderTask extends Task {
         public PlaceholderTask() {
@@ -541,7 +534,8 @@ public class ManagerPanel extends JPanel {
         if (selectedEmp != null) {
             // Show Employee Popup
             showEmployeePopup(selectedEmp);
-        } else {
+        }
+        else {
             // Show Group Popup
             showGroupPopup(selectedGroup);
         }
@@ -577,7 +571,8 @@ public class ManagerPanel extends JPanel {
 
         if (selected.getMembers() == null || selected.getMembers().isEmpty()) {
             details.append("Members: None");
-        } else {
+        }
+        else {
             details.append("Members (").append(selected.getMembers().size()).append("):\n");
             for (Employee member : selected.getMembers()) {
                 details.append(" - ").append(member.getFirstName()).append(" ").append(member.getLastName())

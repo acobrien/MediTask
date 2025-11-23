@@ -27,4 +27,5 @@ public class GroupController {
     public List<Group> getGroups() {
         return groups;
     }
+
 }
